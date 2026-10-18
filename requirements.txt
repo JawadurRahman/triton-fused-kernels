@@ -1,0 +1,16 @@
+# Core. On Colab, torch (with a matching triton) is preinstalled; installing
+# torch on Linux via pip also pulls in the matching triton wheel.
+torch>=2.1
+triton>=2.1
+
+# Analysis / plotting
+numpy
+pandas
+matplotlib
+
+# Testing
+pytest
+
+# Optional energy measurement. This is NVIDIA's official NVML binding;
+# it is imported as `pynvml`. (The separate `pynvml` PyPI package is deprecated.)
+nvidia-ml-py
