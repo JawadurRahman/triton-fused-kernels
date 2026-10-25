@@ -82,12 +82,18 @@ def test_transformer_shaped_input(device):
 
 def test_large_mean_input(device):
     # Rows with a large offset relative to their spread. A one-pass
-    # E[x^2] - E[x]^2 variance loses precision here; two-pass should not.
+    # E[x^2] - E[x]^2 variance loses almost all precision here (error ~0.4
+    # with this data); the two-pass kernel should not. At |h| ~ 1000 one fp32
+    # ulp is 6e-5, so any fp32 implementation is off by ~1e-4. Compare with an
+    # fp64 ground truth and require the kernel to be as accurate as PyTorch's
+    # own fp32 layer_norm, rather than comparing two fp32 results.
     x, res, w, b = make_inputs(8, 1024, torch.float32, device)
     x = x + 1000.0
-    y, _ = add_layernorm(x, res, w, b)
-    y_ref, _ = reference(x, res, w, b)
-    torch.testing.assert_close(y, y_ref, rtol=1e-4, atol=1e-4)
+    y, h = add_layernorm(x, res, w, b)
+    gold = F.layer_norm(h.double(), (h.shape[-1],), w.double(), b.double())
+    torch_err = (F.layer_norm(h, (h.shape[-1],), w, b).double() - gold).abs().max()
+    kernel_err = (y.double() - gold).abs().max()
+    assert kernel_err <= 2 * torch_err, f"kernel err {kernel_err:.2e} vs torch fp32 err {torch_err:.2e}"
 
 
 @pytest.mark.parametrize("eps", [1e-6, 1e-5, 1e-2])
